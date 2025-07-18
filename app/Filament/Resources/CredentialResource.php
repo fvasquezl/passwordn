@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CredentialResource extends Resource
-
+{
     // Helper para obtener usuarios compartidos
     private static function getSharedUserIds($record)
     {
@@ -67,7 +67,6 @@ class CredentialResource extends Resource
             }
         }
     }
-{
     protected static ?string $model = Credential::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
@@ -180,7 +179,6 @@ class CredentialResource extends Resource
                 ->default('read')
                 ->required(),
         ];
-    }
     }
 
     public static function getEloquentQuery(): Builder
