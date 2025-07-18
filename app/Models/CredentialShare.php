@@ -10,8 +10,8 @@ class CredentialShare extends Model
     protected $fillable = [
         'credential_id',
         'shared_by_user_id',
-        'shared_with_user_id',
-        'shared_with_group_id',
+        'shared_with_type',
+        'shared_with_id',
         'permission',
     ];
 
@@ -25,13 +25,8 @@ class CredentialShare extends Model
         return $this->belongsTo(User::class, 'shared_by_user_id');
     }
 
-    public function sharedWith(): BelongsTo
+    public function sharedWith()
     {
-        return $this->belongsTo(User::class, 'shared_with_user_id');
-    }
-
-    public function sharedWithGroup(): BelongsTo
-    {
-        return $this->belongsTo(Group::class, 'shared_with_group_id');
+        return $this->morphTo();
     }
 }

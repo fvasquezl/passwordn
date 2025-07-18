@@ -55,13 +55,24 @@ class SharedCredentialResource extends Resource
                     ->relationship('category', 'name')
                     ->required()
                     ->disabled(fn($record) => !static::canEdit($record)),
+                Forms\Components\TagsInput::make('shared_with')
+                    ->label('Compartido con')
+                    ->disabled()
+                    ->default(function ($record) {
+                        if (!$record)
+                            return [];
+                        $users = $record->shares()->where('shared_with_type', \App\Models\User::class)->with('sharedWith')->get()->map(fn($share) => $share->sharedWith ? 'Usuario: ' . $share->sharedWith->name : null)->filter()->toArray();
+                        $groups = $record->shares()->where('shared_with_type', \App\Models\Group::class)->with('sharedWith')->get()->map(fn($share) => $share->sharedWith ? 'Grupo: ' . $share->sharedWith->name : null)->filter()->toArray();
+                        return array_merge($users, $groups);
+                    })
+                    ->helperText('Usuarios y grupos con los que se ha compartido esta credencial'),
             ]);
     }
 
     public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
     {
         $currentUserId = Filament::auth()->user()->id;
-        $share = $record->shares()->where('shared_with_user_id', $currentUserId)->first();
+        $share = $record->shares()->where('shared_with_type', \App\Models\User::class)->where('shared_with_id', $currentUserId)->first();
         return $share && $share->permission === 'write';
     }
 
@@ -112,7 +123,7 @@ class SharedCredentialResource extends Resource
                     ->label('Shared by')
                     ->state(function (Credential $record) {
                         $currentUserId = Filament::auth()->user()->id;
-                        $share = $record->shares()->where('shared_with_user_id', $currentUserId)->first();
+                        $share = $record->shares()->where('shared_with_type', \App\Models\User::class)->where('shared_with_id', $currentUserId)->first();
                         return $share ? $share->sharedBy->name : 'Unknown';
                     })
                     ->badge()
@@ -121,13 +132,13 @@ class SharedCredentialResource extends Resource
                     ->label('Permission')
                     ->state(function (Credential $record) {
                         $currentUserId = Filament::auth()->user()->id;
-                        $share = $record->shares()->where('shared_with_user_id', $currentUserId)->first();
+                        $share = $record->shares()->where('shared_with_type', \App\Models\User::class)->where('shared_with_id', $currentUserId)->first();
                         return $share ? ucfirst($share->permission) : 'None';
                     })
                     ->badge()
                     ->color(function (Credential $record) {
                         $currentUserId = Filament::auth()->user()->id;
-                        $share = $record->shares()->where('shared_with_user_id', $currentUserId)->first();
+                        $share = $record->shares()->where('shared_with_type', \App\Models\User::class)->where('shared_with_id', $currentUserId)->first();
                         return $share && $share->permission === 'write' ? 'success' : 'info';
                     }),
             ])
@@ -148,15 +159,7 @@ class SharedCredentialResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $userId = Filament::auth()->user()->id;
-        return parent::getEloquentQuery()
-            ->whereHas('shares', function (Builder $query) {
-                $query->where('shared_with_user_id', Filament::auth()->user()->id);
-            })->orWhereHas('shares', function ($q) use ($userId) {
-                $q->whereNotNull('shared_with_group_id')
-                    ->whereHas('sharedWithGroup.users', function ($gq) use ($userId) {
-                        $gq->where('users.id', $userId);
-                    });
-            });
+        return Credential::sharedWithUser($userId);
     }
 
     public static function getPages(): array
